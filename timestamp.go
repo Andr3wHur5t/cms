@@ -5,9 +5,9 @@ import (
 	"crypto/x509"
 	"errors"
 
-	"github.com/mastahyeti/cms/oid"
-	"github.com/mastahyeti/cms/protocol"
-	"github.com/mastahyeti/cms/timestamp"
+	"github.com/andr3whur5t/cms/oid"
+	"github.com/andr3whur5t/cms/protocol"
+	"github.com/andr3whur5t/cms/timestamp"
 )
 
 // AddTimestamps adds a timestamp to the SignedData using the RFC3161

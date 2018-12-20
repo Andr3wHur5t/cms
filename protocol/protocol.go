@@ -391,6 +391,57 @@ type SignerInfo struct {
 	UnsignedAttrs      Attributes `asn1:"set,optional,tag:1"`
 }
 
+// NewSignerInfo creates a populated, but not yet signed signer info object
+func NewSignerInfo(chain []*x509.Certificate, signer crypto.Signer) (si *SignerInfo, err error) {
+	// figure out which certificate is associated with signer.
+	pub, err := x509.MarshalPKIXPublicKey(signer.Public())
+	if err != nil {
+		return
+	}
+
+	var (
+		cert    *x509.Certificate
+		certPub []byte
+	)
+
+	for _, c := range chain {
+		if certPub, err = x509.MarshalPKIXPublicKey(c.PublicKey); err != nil {
+			return
+		}
+
+		if bytes.Equal(pub, certPub) {
+			cert = c
+		}
+	}
+	if cert == nil {
+		err = ErrNoCertificate
+		return
+	}
+
+	sid, err := NewIssuerAndSerialNumber(cert)
+	if err != nil {
+		return
+	}
+
+	digestAlgorithm := digestAlgorithmForPublicKey(pub)
+	signatureAlgorithm, ok := oid.X509PublicKeyAlgorithmToPKIXAlgorithmIdentifier[cert.PublicKeyAlgorithm]
+	if !ok {
+		err = errors.New("unsupported certificate public key algorithm")
+		return
+	}
+
+	si = &SignerInfo{
+		Version:            1,
+		SID:                sid,
+		DigestAlgorithm:    digestAlgorithm,
+		SignedAttrs:        nil,
+		SignatureAlgorithm: signatureAlgorithm,
+		Signature:          nil,
+		UnsignedAttrs:      nil,
+	}
+	return
+}
+
 // FindCertificate finds this SignerInfo's certificate in a slice of
 // certificates.
 func (si SignerInfo) FindCertificate(certs []*x509.Certificate) (*x509.Certificate, error) {
@@ -601,6 +652,22 @@ func NewSignedData(eci EncapsulatedContentInfo) (*SignedData, error) {
 
 // AddSignerInfo adds a SignerInfo to the SignedData, digesting the content in the process.
 func (sd *SignedData) AddSignerInfo(chain []*x509.Certificate, signer crypto.Signer) error {
+	si, err := NewSignerInfo(chain, signer)
+	if err != nil {
+		return err
+	}
+
+	// Build the digest for the embedded content
+
+	// Get the message
+	content, err := sd.EncapContentInfo.EContentValue()
+	if err != nil {
+		return err
+	}
+	if content == nil {
+		return errors.New("already detached")
+	}
+
 	// Digest the message.
 	hash, err := si.Hash()
 	if err != nil {
@@ -612,67 +679,30 @@ func (sd *SignedData) AddSignerInfo(chain []*x509.Certificate, signer crypto.Sig
 	}
 	digest := md.Sum(nil)
 
-	return sd.AddSignerInfoUsingDigest(chain, signer, digest)
+	// Sign and add the info
+	return sd.addSignerInfoWithDigest(chain, signer, si, digest)
 }
 
-// AddSignerInfo adds a SignerInfo to the SignedData using the provided digest.
-func (sd *SignedData) AddSignerInfoUsingDigest(chain []*x509.Certificate, signer crypto.Signer, digest []byte) error {
-	// figure out which certificate is associated with signer.
-	pub, err := x509.MarshalPKIXPublicKey(signer.Public())
+func (sd *SignedData) AddSignerInfoDetached(chain []*x509.Certificate, signer crypto.Signer, digest []byte) error {
+	// Make the Unsigned Signer info
+	si, err := NewSignerInfo(chain, signer)
 	if err != nil {
 		return err
 	}
 
-	var (
-		cert    *x509.Certificate
-		certPub []byte
-	)
+	// Detach our content
+	sd.EncapContentInfo.EContent = asn1.RawValue{}
 
+	return sd.addSignerInfoWithDigest(chain, signer, si, digest)
+}
+
+// AddSignerInfo adds the SignerInfo to the SignedData, and signs provided digest.
+func (sd *SignedData) addSignerInfoWithDigest(chain []*x509.Certificate, signer crypto.Signer, si *SignerInfo, digest []byte) error {
+	// Add Chain to Signer data
 	for _, c := range chain {
-		if err = sd.AddCertificate(c); err != nil {
+		if err := sd.AddCertificate(c); err != nil {
 			return err
 		}
-
-		if certPub, err = x509.MarshalPKIXPublicKey(c.PublicKey); err != nil {
-			return err
-		}
-
-		if bytes.Equal(pub, certPub) {
-			cert = c
-		}
-	}
-	if cert == nil {
-		return ErrNoCertificate
-	}
-
-	sid, err := NewIssuerAndSerialNumber(cert)
-	if err != nil {
-		return err
-	}
-
-	digestAlgorithm := digestAlgorithmForPublicKey(pub)
-	signatureAlgorithm, ok := oid.X509PublicKeyAlgorithmToPKIXAlgorithmIdentifier[cert.PublicKeyAlgorithm]
-	if !ok {
-		return errors.New("unsupported certificate public key algorithm")
-	}
-
-	si := SignerInfo{
-		Version:            1,
-		SID:                sid,
-		DigestAlgorithm:    digestAlgorithm,
-		SignedAttrs:        nil,
-		SignatureAlgorithm: signatureAlgorithm,
-		Signature:          nil,
-		UnsignedAttrs:      nil,
-	}
-
-	// Get the message
-	content, err := sd.EncapContentInfo.EContentValue()
-	if err != nil {
-		return err
-	}
-	if content == nil {
-		return errors.New("already detached")
 	}
 
 	// Build our SignedAttributes
@@ -696,6 +726,10 @@ func (sd *SignedData) AddSignerInfoUsingDigest(chain []*x509.Certificate, signer
 	if err != nil {
 		return err
 	}
+	hash, err := si.Hash()
+	if err != nil {
+		return err
+	}
 	smd := hash.New()
 	if _, errr := smd.Write(sm); errr != nil {
 		return errr
@@ -706,7 +740,7 @@ func (sd *SignedData) AddSignerInfoUsingDigest(chain []*x509.Certificate, signer
 
 	sd.addDigestAlgorithm(si.DigestAlgorithm)
 
-	sd.SignerInfos = append(sd.SignerInfos, si)
+	sd.SignerInfos = append(sd.SignerInfos, *si)
 
 	return nil
 }

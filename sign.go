@@ -49,6 +49,6 @@ func (sd *SignedData) Sign(chain []*x509.Certificate, signer crypto.Signer) erro
 }
 
 // SignDigested adds a signature to the SignedData, it will use the provided content directly as the digest.
-func (sd *SignedData) SignDigested(chain []*x509.Certificate, signer crypto.Signer) error {
-	return sd.psd.AddSignerInfo(chain, signer)
+func (sd *SignedData) SignDigested(chain []*x509.Certificate, signer crypto.Signer, digest []byte) error {
+	return sd.psd.AddSignerInfoDetached(chain, signer, digest)
 }
