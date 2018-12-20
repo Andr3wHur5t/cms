@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andr3whur5t/cms/oid"
 	"github.com/andr3whur5t/cms/protocol"
+	"github.com/mastahyeti/cms/oid"
 )
 
 // HTTPClient is an interface for *http.Client, allowing callers to customize
