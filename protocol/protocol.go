@@ -16,7 +16,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/mastahyeti/cms/oid"
+	"github.com/andr3whur5t/cms/oid"
 )
 
 // ASN1Error is an error from parsing ASN.1 structures.
@@ -324,8 +324,8 @@ func (attrs Attributes) HasAttribute(oid asn1.ObjectIdentifier) bool {
 }
 
 // IssuerAndSerialNumber ::= SEQUENCE {
-// 	issuer Name,
-// 	serialNumber CertificateSerialNumber }
+//  issuer Name,
+//  serialNumber CertificateSerialNumber }
 //
 // CertificateSerialNumber ::= INTEGER
 type IssuerAndSerialNumber struct {
@@ -419,9 +419,6 @@ func NewSignerInfo(chain []*x509.Certificate, signer crypto.Signer) (si *SignerI
 	}
 
 	sid, err := NewIssuerAndSerialNumber(cert)
-	if err != nil {
-		return
-	}
 
 	digestAlgorithm := digestAlgorithmForPublicKey(pub)
 	signatureAlgorithm, ok := oid.X509PublicKeyAlgorithmToPKIXAlgorithmIdentifier[cert.PublicKeyAlgorithm]
@@ -683,12 +680,15 @@ func (sd *SignedData) AddSignerInfo(chain []*x509.Certificate, signer crypto.Sig
 	return sd.addSignerInfoWithDigest(chain, signer, si, digest)
 }
 
-func (sd *SignedData) AddSignerInfoDetached(chain []*x509.Certificate, signer crypto.Signer, digest []byte) error {
+func (sd *SignedData) AddSignerInfoDetached(chain []*x509.Certificate, signer crypto.Signer, digest []byte, signAttrs Attributes) error {
 	// Make the Unsigned Signer info
 	si, err := NewSignerInfo(chain, signer)
 	if err != nil {
 		return err
 	}
+
+	// Append Custom signed attrs
+	si.SignedAttrs = append(si.SignedAttrs, signAttrs...)
 
 	// Detach our content
 	sd.EncapContentInfo.EContent = asn1.RawValue{}

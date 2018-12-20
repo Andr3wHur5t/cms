@@ -3,6 +3,8 @@ package cms
 import (
 	"crypto"
 	"crypto/x509"
+
+	"github.com/andr3whur5t/cms/protocol"
 )
 
 // Sign creates a CMS SignedData from the content and signs it with signer. At
@@ -50,5 +52,10 @@ func (sd *SignedData) Sign(chain []*x509.Certificate, signer crypto.Signer) erro
 
 // SignDigested adds a signature to the SignedData, it will use the provided content directly as the digest.
 func (sd *SignedData) SignDigested(chain []*x509.Certificate, signer crypto.Signer, digest []byte) error {
-	return sd.psd.AddSignerInfoDetached(chain, signer, digest)
+	return sd.psd.AddSignerInfoDetached(chain, signer, digest, nil)
+}
+
+// SignDigested adds a signature to the SignedData, it will use the provided content directly as the digest.
+func (sd *SignedData) SignDigestedCustomAttrs(chain []*x509.Certificate, signer crypto.Signer, digest []byte, signed protocol.Attributes) error {
+	return sd.psd.AddSignerInfoDetached(chain, signer, digest, signed)
 }

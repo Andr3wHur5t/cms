@@ -13,11 +13,10 @@ var (
 	ContentTypeSignedData = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 2}
 	ContentTypeTSTInfo    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 1, 4}
 
-	AttributeContentType             = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 3}
-	AttributeMessageDigest           = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 4}
-	AttributeSigningTime             = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 5}
-	AttributeTimeStampToken          = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 2, 14}
-	AttributeEssSigningCertificateV2 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 2, 47}
+	AttributeContentType    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 3}
+	AttributeMessageDigest  = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 4}
+	AttributeSigningTime    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 5}
+	AttributeTimeStampToken = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 2, 14}
 
 	PublicKeyAlgorithmRSA   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
 	PublicKeyAlgorithmECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
