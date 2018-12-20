@@ -47,3 +47,8 @@ func SignDetached(data []byte, chain []*x509.Certificate, signer crypto.Signer) 
 func (sd *SignedData) Sign(chain []*x509.Certificate, signer crypto.Signer) error {
 	return sd.psd.AddSignerInfo(chain, signer)
 }
+
+// SignDigested adds a signature to the SignedData, it will use the provided content directly as the digest.
+func (sd *SignedData) SignDigested(chain []*x509.Certificate, signer crypto.Signer) error {
+	return sd.psd.AddSignerInfo(chain, signer)
+}
