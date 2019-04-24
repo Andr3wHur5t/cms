@@ -4,10 +4,18 @@ import (
 	"bytes"
 	"crypto/x509"
 	"errors"
+	"io"
 
 	"github.com/andr3whur5t/cms/protocol"
 	"github.com/andr3whur5t/cms/timestamp"
 	"github.com/mastahyeti/cms/oid"
+)
+
+type (
+	StamperResponse struct {
+		RawTimeStampToken []byte
+		Error             error
+	}
 )
 
 // AddTimestamps adds a timestamp to the SignedData using the RFC3161
@@ -33,6 +41,58 @@ func (sd *SignedData) AddTimestamps(url string) error {
 	}
 
 	return nil
+}
+
+func (sd *SignedData) AddRawTimestamps(stamper func([]byte) *StamperResponse) error {
+	var (
+		attrs = make([]protocol.Attribute, len(sd.psd.SignerInfos))
+	)
+
+	// Fetch all timestamp tokens before adding any to sd. This avoids a partial failure.
+	for i := range attrs {
+		siDigest, err := siTimeStampDigest(sd.psd.SignerInfos[i])
+		if err != nil {
+			return err
+		}
+
+		sr := stamper(siDigest)
+		if sr.Error != nil {
+			err = sr.Error
+			return err
+		}
+
+		ciToken, err := protocol.ParseContentInfo(sr.RawTimeStampToken)
+		if err != nil {
+			return err
+		}
+
+		attrs[i], err = protocol.NewAttribute(oid.AttributeTimeStampToken, ciToken)
+		if err != nil {
+			return err
+		}
+	}
+
+	for i := range attrs {
+		sd.psd.SignerInfos[i].UnsignedAttrs = append(sd.psd.SignerInfos[i].UnsignedAttrs, attrs[i])
+	}
+
+	return nil
+}
+
+func siTimeStampDigest(si protocol.SignerInfo) (digest []byte, err error) {
+	hash, err := si.Hash()
+	if err != nil {
+		return nil, err
+	}
+
+	h := hash.New()
+
+	_, err = io.Copy(h, bytes.NewReader(si.Signature))
+	if err != nil {
+		return nil, err
+	}
+
+	return h.Sum(nil), nil
 }
 
 func fetchTS(url string, si protocol.SignerInfo) (protocol.Attribute, error) {
